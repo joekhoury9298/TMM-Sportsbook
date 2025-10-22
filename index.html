@@ -1,0 +1,647 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>TMM Sportsbook — Parlay Builder</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml" />
+<meta name="theme-color" content="#0e1a2f">
+<meta name="description" content="TMM Sportsbook — interactive parlay builder with American odds, wager input, PIN-protected bet history.">
+<style>
+  :root{
+    --midnight-1:#0e1a2f;
+    --midnight-2:#122a50;
+    --card:#142c4d;
+    --card-2:#18355d;
+    --line:#213c64;
+    --yellow:#ffd400;
+    --text:#e8effa;
+    --muted:#9fb1cf;
+    --success:#1bd760;
+    --danger:#ff5d5d;
+    --shadow: 0 10px 24px rgba(0,0,0,0.35);
+    --radius:14px;
+    font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:radial-gradient(1200px 700px at 50% -200px, var(--midnight-2), var(--midnight-1)) fixed;
+    color:var(--text);
+  }
+  header{
+    position:relative;
+    padding:18px 22px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .watermark{
+    position:absolute;left:12px;top:6px;opacity:.08;font-weight:900;font-size:22px;letter-spacing:.8px;
+    color:#fff;pointer-events:none;user-select:none;
+  }
+  .brand{
+    display:flex;align-items:center;gap:10px;background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+    border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:10px 16px;box-shadow:var(--shadow);
+  }
+  .badge{background:var(--yellow);color:#061025;width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+    font-weight:900;box-shadow:var(--shadow)}
+  .title{font-weight:900;letter-spacing:.6px}
+  .scorebar{margin-left:16px;display:flex;gap:10px;align-items:center}
+  .teampill{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);padding:8px 12px;border-radius:10px}
+  main{max-width:1280px;margin:0 auto;padding:18px;display:grid;grid-template-columns:1fr 340px;gap:18px}
+  @media (max-width:1000px){ main{grid-template-columns:1fr} .betslip{position:static} }
+  /* Left column content */
+  .section{background:linear-gradient(180deg, var(--card), var(--card-2));border:1px solid rgba(255,255,255,.08);
+    border-radius:var(--radius);box-shadow:var(--shadow);padding:14px}
+  .section h2{margin:0 0 10px 0;font-size:18px}
+  .hint{font-size:12px;color:var(--muted)}
+  .gamelines{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
+  .gl-card{flex:1;min-width:280px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:12px}
+  .gl-title{margin:0 0 8px;color:var(--yellow);font-weight:900}
+  .choices{display:flex;gap:10px}
+  .choice{
+    flex:1;text-align:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);
+    border-radius:10px;padding:10px;cursor:pointer;transition:.15s transform, .15s box-shadow;
+  }
+  .choice:hover{transform:translateY(-1px);box-shadow:0 8px 18px rgba(0,0,0,.25)}
+  .choice .line{font-weight:900;font-size:18px}
+  .choice .odds{margin-top:3px;font-weight:800;color:var(--success)}
+  .choice.selected{outline:3px solid rgba(255,212,0,.4);background:rgba(255,255,255,.12)}
+  /* Props */
+  .props-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+  @media (max-width:800px){ .props-grid{grid-template-columns:1fr} }
+  .prop-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:12px}
+  .prop-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .player{font-weight:900;letter-spacing:.2px}
+  .cat{color:var(--yellow);font-weight:900;font-size:12px;margin:8px 0 6px;text-transform:uppercase;letter-spacing:.4px}
+  .ou-head{display:grid;grid-template-columns:1fr 1fr;gap:10px;color:var(--muted);font-weight:800;margin-bottom:6px}
+  .ou-row{display:flex;gap:10px}
+  /* Betslip */
+  .betslip{position:sticky;top:12px;height:fit-content;background:linear-gradient(180deg, var(--card), var(--card-2));
+    border:1px solid rgba(255,255,255,.08);border-radius:14px;box-shadow:var(--shadow);padding:14px}
+  .betslip h3{margin:0 0 10px 0}
+  .pick{display:flex;justify-content:space-between;gap:8px;align-items:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:8px;margin-bottom:8px}
+  .remove{cursor:pointer;color:var(--danger);font-weight:900}
+  .totals{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px;margin-top:8px}
+  .field{display:flex;gap:10px;align-items:center;margin-top:8px}
+  .field input{flex:1;padding:8px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#0f1d36;color:var(--text)}
+  .btn{width:100%;margin-top:10px;background:var(--yellow);color:#061025;border:none;border-radius:10px;padding:12px;font-weight:900;cursor:pointer;box-shadow:var(--shadow)}
+  .btn.secondary{background:transparent;border:1px solid rgba(255,255,255,.2);color:var(--text)}
+  .bar{display:flex;gap:10px;margin-top:8px}
+  .small{font-size:12px;color:var(--muted)}
+  /* Modal */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;padding:16px}
+  .modal .panel{max-width:900px;width:100%;background:linear-gradient(180deg, var(--card), var(--card-2));border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:14px;box-shadow:var(--shadow)}
+  .modal h3{margin-top:0}
+  table.history{width:100%;border-collapse:collapse}
+  .history th,.history td{border-bottom:1px solid rgba(255,255,255,.1);padding:8px;text-align:left;font-size:13px}
+  .history tr:last-child td{border-bottom:none}
+  .pill{display:inline-block;padding:2px 6px;border-radius:8px;background:rgba(255,255,255,.08);margin-right:4px}
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;background:#0f1d36;border:1px solid rgba(255,255,255,.2);color:var(--text);padding:10px 14px;border-radius:10px;display:none}
+  .admin-badge{display:inline-block;margin-left:6px;font-size:11px;padding:2px 6px;border-radius:8px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);}
+</style>
+</head>
+<body>
+  <header>
+    <div class="watermark">TMM SPORTSBOOK</div>
+    <div class="brand">
+      <div class="badge">TMM</div>
+      <div class="title">TMM Sportsbook — Parlay Builder <span class="admin-badge" id="adminBadge" style="display:none">Admin</span></div>
+      <div class="scorebar">
+        <span class="teampill">Team White</span>
+        <span class="small">vs</span>
+        <span class="teampill">Team Black</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="leftcol">
+      <!-- GAME LINES -->
+      <section class="section">
+        <h2>Game Lines</h2>
+        <div class="hint">Tap to add to your betslip. Tap again to remove.</div>
+        <div class="gamelines">
+          <div class="gl-card">
+            <h3 class="gl-title">Moneyline</h3>
+            <div class="choices">
+              <div class="choice" data-type="moneyline" data-team="Team White" data-odds="-140">
+                <div class="line">Team White</div>
+                <div class="odds">-140</div>
+              </div>
+              <div class="choice" data-type="moneyline" data-team="Team Black" data-odds="+165">
+                <div class="line">Team Black</div>
+                <div class="odds">+165</div>
+              </div>
+            </div>
+          </div>
+          <div class="gl-card">
+            <h3 class="gl-title">Total Goals (Match)</h3>
+            <div class="choices">
+              <div class="choice" data-type="total" data-side="Over" data-line="18.5" data-odds="-110">
+                <div class="line">Over 18.5</div>
+                <div class="odds">-110</div>
+              </div>
+              <div class="choice" data-type="total" data-side="Under" data-line="18.5" data-odds="-110">
+                <div class="line">Under 18.5</div>
+                <div class="odds">-110</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- PLAYER PROPS -->
+      <section class="section">
+        <h2>Player Props</h2>
+        <div class="props-grid">
+
+          <!-- Maher -->
+          <div class="prop-card">
+            <div class="prop-top"><div class="player">Maher</div></div>
+
+            <div class="cat">Goals</div>
+            <div class="ou-head"><span>Over</span><span>Under</span></div>
+            <div class="ou-row">
+              <div class="choice" data-type="player" data-player="Maher" data-market="Goals" data-side="Over" data-line="0.5" data-odds="+180">
+                <div class="line">0.5</div><div class="odds">+180</div>
+              </div>
+              <div class="choice" data-type="player" data-player="Maher" data-market="Goals" data-side="Under" data-line="0.5" data-odds="-200">
+                <div class="line">0.5</div><div class="odds">-200</div>
+              </div>
+            </div>
+
+            <div class="cat">Assists</div>
+            <div class="ou-head"><span>Over</span><span>Under</span></div>
+            <div class="ou-row">
+              <div class="choice" data-type="player" data-player="Maher" data-market="Assists" data-side="Over" data-line="0.5" data-odds="+160">
+                <div class="line">0.5</div><div class="odds">+160</div>
+              </div>
+              <div class="choice" data-type="player" data-player="Maher" data-market="Assists" data-side="Under" data-line="0.5" data-odds="-180">
+                <div class="line">0.5</div><div class="odds">-180</div>
+              </div>
+            </div>
+
+            <div class="cat">Shots</div>
+            <div class="ou-head"><span>Over</span><span>Under</span></div>
+            <div class="ou-row">
+              <div class="choice" data-type="player" data-player="Maher" data-market="Shots" data-side="Over" data-line="1.5" data-odds="+120">
+                <div class="line">1.5</div><div class="odds">+120</div>
+              </div>
+              <div class="choice" data-type="player" data-player="Maher" data-market="Shots" data-side="Under" data-line="1.5" data-odds="-120">
+                <div class="line">1.5</div><div class="odds">-120</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Johnny -->
+          <div class="prop-card">
+            <div class="prop-top"><div class="player">Johnny</div></div>
+
+            <div class="cat">Goals</div>
+            <div class="ou-head"><span>Over</span><span>Under</span></div>
+            <div class="ou-row">
+              <div class="choice" data-type="player" data-player="Johnny" data-market="Goals" data-side="Over" data-line="0.5" data-odds="+150">
+                <div class="line">0.5</div><div class="odds">+150</div>
+              </div>
+              <div class="choice" data-type="player" data-player="Johnny" data-market="Goals" data-side="Under" data-line="0.5" data-odds="-180">
+                <div class="line">0.5</div><div class="odds">-180</div>
+              </div>
+            </div>
+
+            <div class="cat">Assists</div>
+            <div class="ou-head"><span>Over</span><span>Under</span></div>
+            <div class="ou-row">
+              <div class="choice" data-type="player" data-player="Johnny" data-market="Assists" data-side="Over" data-line="0.5" data-odds="+110">
+                <div class="line">0.5</div><div class="odds">+110</div>
+              </div>
+              <div class="choice" data-type="player" data-player="Johnny" data-market="Assists" data-side="Under" data-line="0.5" data-odds="-110">
+                <div class="line">0.5</div><div class="odds">-110</div>
+              </div>
+            </div>
+
+            <div class="cat">Shots</div>
+            <div class="ou-head"><span>Over</span><span>Under</span></div>
+            <div class="ou-row">
+              <div class="choice" data-type="player" data-player="Johnny" data-market="Shots" data-side="Over" data-line="1.5" data-odds="+120">
+                <div class="line">1.5</div><div class="odds">+120</div>
+              </div>
+              <div class="choice" data-type="player" data-player="Johnny" data-market="Shots" data-side="Under" data-line="1.5" data-odds="-120">
+                <div class="line">1.5</div><div class="odds">-120</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Moe -->
+          <div class="prop-card">
+            <div class="prop-top"><div class="player">Moe</div></div>
+
+            <div class="cat">Goals</div>
+            <div class="ou-head"><span>Over</span><span>Under</span></div>
+            <div class="ou-row">
+              <div class="choice" data-type="player" data-player="Moe" data-market="Goals" data-side="Over" data-line="2.5" data-odds="+160">
+                <div class="line">2.5</div><div class="odds">+160</div>
+              </div>
+              <div class="choice" data-type="player" data-player="Moe" data-market="Goals" data-side="Under" data-line="2.5" data-odds="-140">
+                <div class="line">2.5</div><div class="odds">-140</div>
+              </div>
+            </div>
+
+            <div class="cat">Assists</div>
+            <div class="ou-head"><span>Over</span><span>Under</span></div>
+            <div class="ou-row">
+              <div class="choice" data-type="player" data-player="Moe" data-market="Assists" data-side="Over" data-line="1.5" data-odds="+120">
+                <div class="line">1.5</div><div class="odds">+120</div>
+              </div>
+              <div class="choice" data-type="player" data-player="Moe" data-market="Assists" data-side="Under" data-line="1.5" data-odds="-120">
+                <div class="line">1.5</div><div class="odds">-120</div>
+              </div>
+            </div>
+
+            <div class="cat">Shots</div>
+            <div class="ou-head"><span>Over</span><span>Under</span></div>
+            <div class="ou-row">
+              <div class="choice" data-type="player" data-player="Moe" data-market="Shots" data-side="Over" data-line="4.5" data-odds="+110">
+                <div class="line">4.5</div><div class="odds">+110</div>
+              </div>
+              <div class="choice" data-type="player" data-player="Moe" data-market="Shots" data-side="Under" data-line="4.5" data-odds="-110">
+                <div class="line">4.5</div><div class="odds">-110</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- James -->
+          <div class="prop-card">
+            <div class="prop-top"><div class="player">James</div></div>
+
+            <div class="cat">Goals</div>
+            <div class="ou-head"><span>Over</span><span>Under</span></div>
+            <div class="ou-row">
+              <div class="choice" data-type="player" data-player="James" data-market="Goals" data-side="Over" data-line="1.5" data-odds="-110">
+                <div class="line">1.5</div><div class="odds">-110</div>
+              </div>
+              <div class="choice" data-type="player" data-player="James" data-market="Goals" data-side="Under" data-line="1.5" data-odds="-110">
+                <div class="line">1.5</div><div class="odds">-110</div>
+              </div>
+            </div>
+
+            <div class="cat">Assists</div>
+            <div class="ou-head"><span>Over</span><span>Under</span></div>
+            <div class="ou-row">
+              <div class="choice" data-type="player" data-player="James" data-market="Assists" data-side="Over" data-line="1.5" data-odds="+150">
+                <div class="line">1.5</div><div class="odds">+150</div>
+              </div>
+              <div class="choice" data-type="player" data-player="James" data-market="Assists" data-side="Under" data-line="1.5" data-odds="-200">
+                <div class="line">1.5</div><div class="odds">-200</div>
+              </div>
+            </div>
+
+            <div class="cat">Shots</div>
+            <div class="ou-head"><span>Over</span><span>Under</span></div>
+            <div class="ou-row">
+              <div class="choice" data-type="player" data-player="James" data-market="Shots" data-side="Over" data-line="3.5" data-odds="-110">
+                <div class="line">3.5</div><div class="odds">-110</div>
+              </div>
+              <div class="choice" data-type="player" data-player="James" data-market="Shots" data-side="Under" data-line="3.5" data-odds="-110">
+                <div class="line">3.5</div><div class="odds">-110</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Joey -->
+          <div class="prop-card">
+            <div class="prop-top"><div class="player">Joey</div></div>
+
+            <div class="cat">Goals</div>
+            <div class="ou-head"><span>Over</span><span>Under</span></div>
+            <div class="ou-row">
+              <div class="choice" data-type="player" data-player="Joey" data-market="Goals" data-side="Over" data-line="3.5" data-odds="+160">
+                <div class="line">3.5</div><div class="odds">+160</div>
+              </div>
+              <div class="choice" data-type="player" data-player="Joey" data-market="Goals" data-side="Under" data-line="3.5" data-odds="-120">
+                <div class="line">3.5</div><div class="odds">-120</div>
+              </div>
+            </div>
+
+            <div class="cat">Assists</div>
+            <div class="ou-head"><span>Over</span><span>Under</span></div>
+            <div class="ou-row">
+              <div class="choice" data-type="player" data-player="Joey" data-market="Assists" data-side="Over" data-line="1.5" data-odds="-110">
+                <div class="line">1.5</div><div class="odds">-110</div>
+              </div>
+              <div class="choice" data-type="player" data-player="Joey" data-market="Assists" data-side="Under" data-line="1.5" data-odds="-110">
+                <div class="line">1.5</div><div class="odds">-110</div>
+              </div>
+            </div>
+
+            <div class="cat">Shots</div>
+            <div class="ou-head"><span>Over</span><span>Under</span></div>
+            <div class="ou-row">
+              <div class="choice" data-type="player" data-player="Joey" data-market="Shots" data-side="Over" data-line="7.5" data-odds="-110">
+                <div class="line">7.5</div><div class="odds">-110</div>
+              </div>
+              <div class="choice" data-type="player" data-player="Joey" data-market="Shots" data-side="Under" data-line="7.5" data-odds="-110">
+                <div class="line">7.5</div><div class="odds">-110</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Carlos -->
+          <div class="prop-card">
+            <div class="prop-top"><div class="player">Carlos</div></div>
+
+            <div class="cat">Goals</div>
+            <div class="ou-head"><span>Over</span><span>Under</span></div>
+            <div class="ou-row">
+              <div class="choice" data-type="player" data-player="Carlos" data-market="Goals" data-side="Over" data-line="2.5" data-odds="+250">
+                <div class="line">2.5</div><div class="odds">+250</div>
+              </div>
+              <div class="choice" data-type="player" data-player="Carlos" data-market="Goals" data-side="Under" data-line="2.5" data-odds="-220">
+                <div class="line">2.5</div><div class="odds">-220</div>
+              </div>
+            </div>
+
+            <div class="cat">Assists</div>
+            <div class="ou-head"><span>Over</span><span>Under</span></div>
+            <div class="ou-row">
+              <div class="choice" data-type="player" data-player="Carlos" data-market="Assists" data-side="Over" data-line="1.5" data-odds="+140">
+                <div class="line">1.5</div><div class="odds">+140</div>
+              </div>
+              <div class="choice" data-type="player" data-player="Carlos" data-market="Assists" data-side="Under" data-line="1.5" data-odds="-180">
+                <div class="line">1.5</div><div class="odds">-180</div>
+              </div>
+            </div>
+
+            <div class="cat">Shots</div>
+            <div class="ou-head"><span>Over</span><span>Under</span></div>
+            <div class="ou-row">
+              <div class="choice" data-type="player" data-player="Carlos" data-market="Shots" data-side="Over" data-line="3.5" data-odds="+120">
+                <div class="line">3.5</div><div class="odds">+120</div>
+              </div>
+              <div class="choice" data-type="player" data-player="Carlos" data-market="Shots" data-side="Under" data-line="3.5" data-odds="-120">
+                <div class="line">3.5</div><div class="odds">-120</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+    </div>
+
+    <!-- BETSLIP -->
+    <aside class="betslip" aria-label="TMM Betslip">
+      <h3>TMM Betslip</h3>
+      <div id="picks"></div>
+
+      <div class="totals">
+        <div><strong>Total Legs:</strong> <span id="legCount">0</span></div>
+        <div><strong>Total Odds:</strong> <span id="totalOdds">+0</span></div>
+        <div class="field">
+          <label for="stake" style="min-width:80px">Wager:</label>
+          <input id="stake" type="number" min="0" step="0.01" placeholder="$">
+        </div>
+        <div style="margin-top:6px"><strong>Payout:</strong> <span id="payout">$0.00</span> <span class="small">(incl. stake)</span></div>
+      </div>
+      <div class="bar">
+        <button id="placeBet" class="btn">Place Bet</button>
+        <button id="reset" class="btn secondary">Reset Parlay</button>
+      </div>
+      <div class="bar">
+        <button id="viewHistory" class="btn secondary">View Bet History</button>
+      </div>
+      <div class="small" style="margin-top:8px">American odds. Picks combine using standard parlay math.</div>
+    </aside>
+  </main>
+
+  <!-- History Modal -->
+  <div class="modal" id="historyModal" aria-hidden="true" role="dialog">
+    <div class="panel">
+      <h3>Bet History</h3>
+      <div style="max-height:50vh;overflow:auto">
+        <table class="history">
+          <thead>
+            <tr><th>Time</th><th>Legs</th><th>Total Odds</th><th>Stake</th><th>Payout</th></tr>
+          </thead>
+          <tbody id="historyBody"></tbody>
+        </table>
+      </div>
+      <div class="bar">
+        <button id="exportCsv" class="btn secondary">Export CSV</button>
+        <button id="clearHistory" class="btn secondary">Clear History</button>
+        <button id="closeHistory" class="btn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">Saved!</div>
+
+<script>
+  const ADMIN_PIN = "9550"; // change here if needed
+
+  // ----- Odds math -----
+  function americanToDecimal(a){
+    a = parseInt(a,10);
+    if (a > 0) return 1 + (a/100);
+    return 1 + (100/Math.abs(a));
+  }
+  function decimalToAmerican(d){
+    if (d >= 2) return '+' + Math.round((d-1)*100);
+    return '-' + Math.round(100/(d-1));
+  }
+  function formatCurrency(n){
+    return '$' + (Math.round(n*100)/100).toFixed(2);
+  }
+
+  // ----- State -----
+  const picks = new Map(); // key -> pick object
+  const picksEl = document.getElementById('picks');
+  const legCountEl = document.getElementById('legCount');
+  const totalOddsEl = document.getElementById('totalOdds');
+  const payoutEl = document.getElementById('payout');
+  const stakeEl = document.getElementById('stake');
+
+  function pickKey(p){
+    // unique per selection
+    return [p.type,p.player||p.team,p.market||p.side,p.side,p.line,p.odds].join('|');
+  }
+
+  function recalc(){
+    // recompute total decimal odds
+    let dec = 1.0;
+    for (const p of picks.values()){
+      dec *= americanToDecimal(p.odds);
+    }
+    const american = (picks.size>0) ? decimalToAmerican(dec) : '+0';
+    totalOddsEl.textContent = american;
+    legCountEl.textContent = picks.size;
+
+    const stake = parseFloat(stakeEl.value || '0');
+    const payout = stake>0 ? stake * dec : 0;
+    payoutEl.textContent = formatCurrency(payout);
+  }
+
+  function renderPicks(){
+    picksEl.innerHTML = '';
+    for (const p of picks.values()){
+      const div = document.createElement('div');
+      div.className = 'pick';
+      const label = (p.type==='player')
+        ? `${p.player} — ${p.market} ${p.side} ${p.line} (${p.odds>0?('+'+p.odds):p.odds})`
+        : (p.type==='moneyline')
+          ? `${p.team} Moneyline (${p.odds>0?('+'+p.odds):p.odds})`
+          : `Total Goals ${p.side} ${p.line} (${p.odds>0?('+'+p.odds):p.odds})`;
+      div.innerHTML = `<span>${label}</span><span class="remove" title="Remove">×</span>`;
+      div.querySelector('.remove').addEventListener('click',()=>{
+        // unselect corresponding card
+        const card = document.querySelector(`[data-key="${p.key}"]`);
+        if(card) card.classList.remove('selected');
+        picks.delete(p.key);
+        renderPicks(); recalc();
+      });
+      picksEl.appendChild(div);
+    }
+  }
+
+  function showToast(msg='Saved!'){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.style.display = 'block';
+    setTimeout(()=>{t.style.display = 'none';}, 1200);
+  }
+
+  // Attach click handlers
+  document.querySelectorAll('.choice').forEach(el=>{
+    // build a stable key and store on element
+    const p = {
+      type: el.dataset.type,
+      player: el.dataset.player || null,
+      team: el.dataset.team || null,
+      market: el.dataset.market || null,
+      side: el.dataset.side || null,
+      line: el.dataset.line || null,
+      odds: parseInt(el.dataset.odds,10)
+    };
+    const key = pickKey(p);
+    el.dataset.key = key;
+
+    el.addEventListener('click', ()=>{
+      if (el.classList.contains('selected')){
+        el.classList.remove('selected');
+        picks.delete(key);
+      } else {
+        el.classList.add('selected');
+        picks.set(key, {...p, key});
+      }
+      renderPicks(); recalc();
+    });
+  });
+
+  // Reset
+  document.getElementById('reset').addEventListener('click',()=>{
+    document.querySelectorAll('.choice.selected').forEach(el=>el.classList.remove('selected'));
+    picks.clear();
+    stakeEl.value='';
+    renderPicks(); recalc();
+  });
+
+  // Place bet -> save to localStorage
+  document.getElementById('placeBet').addEventListener('click',()=>{
+    if(picks.size===0){ showToast('Add at least one pick'); return; }
+    const stake = parseFloat(stakeEl.value||'0');
+    if(isNaN(stake) || stake<=0){ showToast('Enter a wager'); return; }
+
+    // compute totals
+    let dec = 1.0;
+    const legs = [];
+    for (const p of picks.values()){
+      dec *= americanToDecimal(p.odds);
+      legs.push(p);
+    }
+    const american = decimalToAmerican(dec);
+    const payout = stake * dec;
+
+    const rec = {
+      ts: new Date().toISOString(),
+      legs,
+      totalAmerican: american,
+      totalDecimal: dec,
+      stake,
+      payout
+    };
+    const key = 'tmm_bets';
+    const arr = JSON.parse(localStorage.getItem(key) || '[]');
+    arr.push(rec);
+    localStorage.setItem(key, JSON.stringify(arr));
+
+    showToast('Bet placed');
+    // clear current slip
+    document.getElementById('reset').click();
+  });
+
+  // History modal (PIN-protected)
+  const modal = document.getElementById('historyModal');
+  const body = document.getElementById('historyBody');
+  function openHistory(){
+    body.innerHTML='';
+    const arr = JSON.parse(localStorage.getItem('tmm_bets')||'[]');
+    for(const rec of arr){
+      const tr = document.createElement('tr');
+      const ts = new Date(rec.ts).toLocaleString();
+      const legsHtml = rec.legs.map(p => {
+        return (p.type==='player')
+          ? `<span class="pill">${p.player} — ${p.market} ${p.side} ${p.line} (${p.odds>0?('+'+p.odds):p.odds})</span>`
+          : (p.type==='moneyline')
+            ? `<span class="pill">${p.team} ML (${p.odds>0?('+'+p.odds):p.odds})</span>`
+            : `<span class="pill">Total ${p.side} ${p.line} (${p.odds>0?('+'+p.odds):p.odds})</span>`;
+      }).join(' ');
+      tr.innerHTML = `<td>${ts}</td><td>${legsHtml}</td><td>${rec.totalAmerican}</td><td>${formatCurrency(rec.stake)}</td><td>${formatCurrency(rec.payout)}</td>`;
+      body.appendChild(tr);
+    }
+    modal.style.display='flex';
+    modal.setAttribute('aria-hidden','false');
+  }
+
+  // Gate history behind PIN prompt
+  document.getElementById('viewHistory').addEventListener('click', ()=>{
+    const entered = prompt('Enter Admin PIN:');
+    if(entered === ADMIN_PIN){
+      document.getElementById('adminBadge').style.display='inline-block';
+      openHistory();
+    }else if(entered !== null){
+      alert('Incorrect PIN');
+    }
+  });
+
+  document.getElementById('closeHistory').addEventListener('click', ()=>{
+    modal.style.display='none'; modal.setAttribute('aria-hidden','true');
+  });
+  document.getElementById('clearHistory').addEventListener('click', ()=>{
+    if(confirm('Clear all saved bets on this device?')){
+      localStorage.removeItem('tmm_bets');
+      openHistory();
+    }
+  });
+  document.getElementById('exportCsv').addEventListener('click', ()=>{
+    const arr = JSON.parse(localStorage.getItem('tmm_bets')||'[]');
+    let csv = 'time,total_odds,stake,payout,legs\n';
+    for(const rec of arr){
+      const legs = rec.legs.map(p=>{
+        return (p.type==='player')
+          ? `${p.player} ${p.market} ${p.side} ${p.line} (${p.odds>0?('+'+p.odds):p.odds})`
+          : (p.type==='moneyline')
+            ? `${p.team} ML (${p.odds>0?('+'+p.odds):p.odds})`
+            : `Total ${p.side} ${p.line} (${p.odds>0?('+'+p.odds):p.odds})`;
+      }).join(' | ');
+      csv += `"${rec.ts}",${rec.totalAmerican},${rec.stake},${rec.payout},"${legs}"\n`;
+    }
+    const blob = new Blob([csv], {type:'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download='tmm_bet_history.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  });
+
+  // update payout on stake change
+  document.getElementById('stake').addEventListener('input', recalc);
+</script>
+</body>
+</html>
